@@ -31,6 +31,7 @@ from maubot.handlers import command
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
         helper.copy("federation_tester")
+        helper.copy("full_listing")
 
 
 class TestError(Exception):
@@ -79,7 +80,7 @@ class ServerInfo(NamedTuple):
     version: VersionIdentifier
 
     @classmethod
-    def parse(cls, software: str, version: str) -> 'ServerInfo':
+    def parse(self, software: str, version: str) -> 'ServerInfo':
         if software.lower() == "synapse":
             return ServerInfo(software="Synapse",
                               version=packaging.version.parse(version.split(" ")[0]))
@@ -141,6 +142,39 @@ def parse_operator(val: str) -> ComparisonOperator:
     return op_map.get(val)
 
 
+def antinotify(text: str) -> str:
+    return "\ufeff".join(text)
+
+def listServers(results: Results) -> str:
+    matches = {}
+
+    for server_name, info in results.versions.items():
+        softwareVersion = f"{info.software} {info.version}"
+
+        users = results.servers[server_name]
+        first = True
+        for user in users:
+            if first:
+                first = False
+                user_list = f"[{antinotify(user)}](https://matrix.to/#/{user})"
+            else:
+                user_list += f", [{antinotify(user)}](https://matrix.to/#/{user})"
+
+        try:
+            matches[softwareVersion].append(
+                f"* {server_name} with {user_list}")
+        except KeyError:
+            matches[softwareVersion] = []
+            matches[softwareVersion].append(
+                f"* {server_name} with {user_list}")
+
+    reply = ["### Versions\n\n"]
+    for softwareVersion in dict(sorted(matches.items(), key=lambda item: item[0], reverse=True)):
+        reply.append(f"#### {softwareVersion}")
+        for server in matches[softwareVersion]:
+            reply.append(f"{server}")
+    return "\n".join(reply)
+
 class ServerCheckerBot(Plugin):
     caches: Dict[RoomID, Results] = {}
     tests_in_progress: Set[RoomID] = set()
@@ -149,7 +183,7 @@ class ServerCheckerBot(Plugin):
         self.on_external_config_update()
 
     @classmethod
-    def get_config_class(cls) -> Type[Config]:
+    def get_config_class(self) -> Type[Config]:
         return Config
 
     async def _edit(self, room_id: RoomID, event_id: EventID, text: str) -> None:
@@ -204,20 +238,24 @@ class ServerCheckerBot(Plugin):
         by_version: Dict[ServerInfo, Tuple[int, List[UserID]]] = {}
         for server_name, info in results.versions.items():
             users = results.servers[server_name]
-            existing_server_count, existing_users = by_version.get(info, (0, []))
-            by_version[info] = (existing_server_count + 1, existing_users + users)
+            existing_server_count, existing_users = by_version.get(
+                info, (0, []))
+            by_version[info] = (existing_server_count +
+                                1, existing_users + users)
         return dict(sorted(by_version.items(), reverse=True))
 
-    @classmethod
-    def _format_results(cls, results: Results) -> str:
+    def _format_results(self, results: Results) -> str:
         def members(server_name: str) -> str:
             return _pluralize(len(results.servers[server_name]), "member")
 
-        versions_str = ("### Versions\n\n"
-                        + "\n".join(f"* {_pluralize(server_count, 'server')} "
-                                    f"with {_pluralize(len(users), 'member')} on {info}"
-                                    for info, (server_count, users)
-                                    in cls._aggregate_versions(results).items()))
+        if self.config["full_listing"]:
+            versions_str = listServers(results);
+        else:
+            versions_str = ("### Versions\n\n"
+                            + "\n".join(f"* {_pluralize(server_count, 'server')} "
+                                        f"with {_pluralize(len(users), 'member')} on {info}"
+                                        for info, (server_count, users)
+                                        in self._aggregate_versions(results).items()))
         errors_str = ("### Errors\n\n"
                       + "\n".join(f"* {server} ({members(server)}): {error}"
                                   for server, error in results.errors.items())
@@ -340,9 +378,6 @@ class ServerCheckerBot(Plugin):
             operator = op.eq
         want_info = ServerInfo.parse(software, version)
         matches = []
-
-        def antinotify(text: str) -> str:
-            return "\ufeff".join(text)
 
         for server_name, info in cache.versions.items():
             if ((info.software.lower() == want_info.software.lower()

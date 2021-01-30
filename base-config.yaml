@@ -1,3 +1,7 @@
 # The https://github.com/matrix-org/matrix-federation-tester instance to use.
 # {server} is replaced with the server name.
 federation_tester: https://matrix.org/federationtester/api/report?server_name={server}
+
+# Display full listing including all users by server instead of summary when running !servers.
+# Notice that this will be spammy on large channels.
+full_listing: false
