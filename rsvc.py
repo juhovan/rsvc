@@ -169,7 +169,7 @@ def listServers(results: Results) -> str:
                 f"* {server_name} with {user_list}")
 
     reply = ["### Versions\n\n"]
-    for softwareVersion in dict(sorted(matches.items(), key=lambda item: item[0], reverse=True)):
+    for softwareVersion in dict(sorted(matches.items(), key=lambda item: item[0]+"z", reverse=True)):
         reply.append(f"#### {softwareVersion}")
         for server in matches[softwareVersion]:
             reply.append(f"{server}")
