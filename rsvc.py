@@ -19,6 +19,7 @@ import operator as op
 
 from attr import dataclass
 import packaging.version
+import semver
 import attr
 
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
@@ -72,7 +73,7 @@ server_order: Dict[str, int] = {
     "Dendrite": 10,
 }
 
-VersionIdentifier = Union[str, packaging.version.Version]
+VersionIdentifier = Union[str, packaging.version.Version, semver.VersionInfo]
 
 
 class ServerInfo(NamedTuple):
@@ -84,6 +85,9 @@ class ServerInfo(NamedTuple):
         if software.lower() == "synapse":
             return ServerInfo(software="Synapse",
                               version=version)
+        elif software.lower() == "dendrite":
+            return ServerInfo(software="Dendrite",
+                              version=semver.VersionInfo.parse(version))
         else:
             return ServerInfo(software=software, version=version)
 
