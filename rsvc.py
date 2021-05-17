@@ -83,7 +83,7 @@ class ServerInfo(NamedTuple):
     def parse(self, software: str, version: str) -> 'ServerInfo':
         if software.lower() == "synapse":
             return ServerInfo(software="Synapse",
-                              version=packaging.version.parse(version.split(" ")[0]))
+                              version=version)
         else:
             return ServerInfo(software=software, version=version)
 
@@ -94,7 +94,7 @@ class ServerInfo(NamedTuple):
         elif callable(minimum):
             return minimum(self.version)
         else:
-            return self.version >= minimum
+            return packaging.version.parse(self.version.split(" ")[0]) >= minimum
 
     def __str__(self) -> str:
         return f"{self.software} {self.version}"
