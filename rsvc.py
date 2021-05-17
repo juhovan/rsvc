@@ -145,6 +145,7 @@ def parse_operator(val: str) -> ComparisonOperator:
 def antinotify(text: str) -> str:
     return "\ufeff".join(text)
 
+
 def listServers(results: Results) -> str:
     matches = {}
 
@@ -174,6 +175,7 @@ def listServers(results: Results) -> str:
         for server in matches[softwareVersion]:
             reply.append(f"{server}")
     return "\n".join(reply)
+
 
 class ServerCheckerBot(Plugin):
     caches: Dict[RoomID, Results] = {}
@@ -249,7 +251,7 @@ class ServerCheckerBot(Plugin):
             return _pluralize(len(results.servers[server_name]), "member")
 
         if self.config["full_listing"]:
-            versions_str = listServers(results);
+            versions_str = listServers(results)
         else:
             versions_str = ("### Versions\n\n"
                             + "\n".join(f"* {_pluralize(server_count, 'server')} "
